@@ -563,6 +563,11 @@ class Browsershot
         return $this->setOption('protocolTimeout', $protocolTimeout * 1000);
     }
 
+    public function debuggingPort(int $debuggingPort): static
+    {
+        return $this->setOption('debuggingPort', $debuggingPort);
+    }
+
     public function userAgent(string $userAgent): static
     {
         return $this->setOption('userAgent', $userAgent);

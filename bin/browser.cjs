@@ -115,6 +115,7 @@ const callChrome = async pup => {
                     ...process.env
                 },
                 protocolTimeout: request.options.protocolTimeout ?? 30000,
+                debuggingPort: request.options.debuggingPort ?? undefined,
             });
         }
 
