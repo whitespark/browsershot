@@ -78,7 +78,8 @@ const callChrome = async pup => {
         if (request.options.remoteInstanceUrl || request.options.browserWSEndpoint ) {
             // default options
             let options = {
-                acceptInsecureCerts: request.options.acceptInsecureCerts
+                acceptInsecureCerts: request.options.acceptInsecureCerts,
+                protocolTimeout: 10_000,
             };
 
             // choose only one method to connect to the browser instance
