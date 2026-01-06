@@ -125,8 +125,6 @@ const callChrome = async pup => {
             await page.setJavaScriptEnabled(false);
         }
 
-        await page.setRequestInterception(true);
-
         const contentUrl = request.options.contentUrl;
         const parsedContentUrl = contentUrl ? contentUrl.replace(/\/$/, "") : undefined;
         let pageContent;
@@ -172,85 +170,6 @@ const callChrome = async pup => {
                 url: response.url(),
             });
         })
-
-        page.on('request', interceptedRequest => {
-            var headers = interceptedRequest.headers();
-
-            if (!request.options || !request.options.disableCaptureURLS) {
-                requestsList.push({
-                    url: interceptedRequest.url(),
-                });
-            }
-
-            if (request.options && request.options.disableImages) {
-                if (interceptedRequest.resourceType() === 'image') {
-                    interceptedRequest.abort();
-                    return;
-                }
-            }
-
-            if (request.options && request.options.blockDomains) {
-                const hostname = URLParse(interceptedRequest.url()).hostname;
-                if (request.options.blockDomains.includes(hostname)) {
-                    interceptedRequest.abort();
-                    return;
-                }
-            }
-
-            if (request.options && request.options.blockUrls) {
-                for (const element of request.options.blockUrls) {
-                    if (interceptedRequest.url().indexOf(element) >= 0) {
-                        interceptedRequest.abort();
-                        return;
-                    }
-                }
-            }
-
-            if (request.options && request.options.disableRedirects) {
-                if (interceptedRequest.isNavigationRequest() && interceptedRequest.redirectChain().length) {
-                    interceptedRequest.abort();
-                    return
-                }
-            }
-
-            if (request.options && request.options.extraNavigationHTTPHeaders) {
-                // Do nothing in case of non-navigation requests.
-                if (interceptedRequest.isNavigationRequest()) {
-                    headers = Object.assign({}, headers, request.options.extraNavigationHTTPHeaders);
-                }
-            }
-
-            if (pageContent) {
-                const interceptedUrl = interceptedRequest.url().replace(/\/$/, "");
-
-                // if content url matches the intercepted request url, will return the content fetched from the local file system
-                if (interceptedUrl === parsedContentUrl) {
-                    interceptedRequest.respond({
-                        headers,
-                        body: pageContent,
-                    });
-                    return;
-                }
-            }
-
-            if (request.postParams) {
-                const postParamsArray = request.postParams;
-                const queryString = Object.keys(postParamsArray)
-                    .map(key => `${key}=${postParamsArray[key]}`)
-                    .join('&');
-                interceptedRequest.continue({
-                    method: "POST",
-                    postData: queryString,
-                    headers: {
-                        ...interceptedRequest.headers(),
-                        "Content-Type": "application/x-www-form-urlencoded"
-                    }
-                });
-                return;
-            }
-
-            interceptedRequest.continue({ headers });
-        });
 
         if (request.options && request.options.dismissDialogs) {
             page.on('dialog', async dialog => {
