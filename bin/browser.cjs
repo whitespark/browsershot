@@ -103,8 +103,6 @@ const callChrome = async pup => {
 
             try {
                 browser = await puppet.connect( options );
-
-                remoteInstance = true;
             } catch (exception) {
 
                 if (request.options.throwOnRemoteConnectionError) {
@@ -150,18 +148,18 @@ const callChrome = async pup => {
             await page.waitForFunction(request.options.function, functionOptions);
         }
 
-        if (remoteInstance && page) {
+        if (page) {
             await page.close();
         }
 
-        await (remoteInstance ? browser.disconnect() : browser.close());
+        await browser.disconnect();
     } catch (exception) {
         if (browser) {
-            if (remoteInstance && page) {
+            if ( page) {
                 await page.close();
             }
 
-            await (remoteInstance ? browser.disconnect() : browser.close());
+            await browser.disconnect();
         }
 
         const output = await getOutput(request);
