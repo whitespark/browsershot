@@ -1,6 +1,7 @@
 const fs = require('fs');
 const URL = require('url').URL;
 const URLParse = require('url').parse;
+const net = require('net');
 
 if (typeof global.ReadableStream === 'undefined') {
     const {ReadableStream} = require("stream/web");
@@ -28,6 +29,17 @@ const consoleMessages = [];
 const failedRequests = [];
 
 const pageErrors = [];
+
+function isPortOpen(host, port, timeout = 300) {
+    return new Promise((resolve) => {
+        const socket = new net.Socket();
+        socket.setTimeout(timeout);
+        socket.once("connect", () => { socket.destroy(); resolve(true); });
+        socket.once("error", () => resolve(false));
+        socket.once("timeout", () => { socket.destroy(); resolve(false); });
+        socket.connect(port, host);
+    });
+}
 
 const getOutput = async (request, page = null) => {
     let output = {
@@ -75,7 +87,7 @@ const callChrome = async pup => {
     const puppet = (pup || require('puppeteer'));
 
     try {
-        if (request.options.remoteInstanceUrl || request.options.browserWSEndpoint ) {
+        if ( request.options.remoteInstanceUrl || request.options.browserWSEndpoint && (await isPortOpen("127.0.0.1", request.options.debuggingPort, 300))) {
             // default options
             let options = {
                 acceptInsecureCerts: request.options.acceptInsecureCerts,
