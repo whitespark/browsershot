@@ -134,200 +134,13 @@ const callChrome = async pup => {
 
         page = await browser.newPage();
 
-        if (request.options && request.options.disableJavascript) {
-            await page.setJavaScriptEnabled(false);
-        }
-
-        const contentUrl = request.options.contentUrl;
-        const parsedContentUrl = contentUrl ? contentUrl.replace(/\/$/, "") : undefined;
-        let pageContent;
-
-        if (contentUrl) {
-            pageContent = fs.readFileSync(request.url.replace('file://', ''));
-            request.url = contentUrl;
-        }
-
-        page.on('console', (message) =>
-            consoleMessages.push({
-                type: message.type(),
-                message: message.text(),
-                location: message.location(),
-                stackTrace: message.stackTrace(),
-            })
-        );
-
-        page.on('pageerror', (msg) => {
-            pageErrors.push({
-                name: msg?.name || 'unknown error',
-                message: msg?.message || msg?.toString() || 'null'
-            });
-        });
-
-        page.on('response', function (response) {
-            const frame = response.request().frame();
-            if (response.request().isNavigationRequest() && frame && frame.parentFrame() === null) {
-                redirectHistory.push({
-                    url: response.request().url(),
-                    status: response.status(),
-                    reason: response.statusText(),
-                    headers: response.headers()
-                })
-            }
-
-            if (response.status() >= 200 && response.status() <= 399) {
-                return;
-            }
-
-            failedRequests.push({
-                status: response.status(),
-                url: response.url(),
-            });
-        })
-
-        if (request.options && request.options.dismissDialogs) {
-            page.on('dialog', async dialog => {
-                await dialog.dismiss();
-            });
-        }
-
-        if (request.options && request.options.userAgent) {
-            await page.setUserAgent(request.options.userAgent);
-        }
-
-        if (request.options && request.options.device) {
-            const devices = puppet.KnownDevices;
-            const device = devices[request.options.device];
-            await page.emulate(device);
-        }
-
-        if (request.options && request.options.emulateMedia) {
-            await page.emulateMediaType(request.options.emulateMedia);
-        }
-
-        if (request.options && request.options.emulateMediaFeatures) {
-            await page.emulateMediaFeatures(JSON.parse(request.options.emulateMediaFeatures));
-        }
-
         if (request.options && request.options.viewport) {
             await page.setViewport(request.options.viewport);
         }
 
-        if (request.options && request.options.extraHTTPHeaders) {
-            await page.setExtraHTTPHeaders(request.options.extraHTTPHeaders);
-        }
-
-        if (request.options && request.options.authentication) {
-            await page.authenticate(request.options.authentication);
-        }
-
-        if (request.options && request.options.cookies) {
-            await page.setCookie(...request.options.cookies);
-        }
-
-        if (request.options && request.options.timeout) {
-            await page.setDefaultNavigationTimeout(request.options.timeout);
-        }
-
         const requestOptions = {};
 
-        if (request.options && request.options.networkIdleTimeout) {
-            requestOptions.waitUntil = 'networkidle';
-            requestOptions.networkIdleTimeout = request.options.networkIdleTimeout;
-        } else if (request.options && request.options.waitUntil) {
-            requestOptions.waitUntil = request.options.waitUntil;
-        }
-
-        const response = await page.goto(request.url, requestOptions);
-
-        if (request.options.preventUnsuccessfulResponse) {
-            const status = response.status()
-
-            if (status >= 400 && status < 600) {
-                throw {type: "UnsuccessfulResponse", status};
-            }
-        }
-
-        if (request.options && request.options.disableImages) {
-            await page.evaluate(() => {
-                let images = document.getElementsByTagName('img');
-                while (images.length > 0) {
-                    images[0].parentNode.removeChild(images[0]);
-                }
-            });
-        }
-
-        if (request.options && request.options.types) {
-            for (let i = 0, len = request.options.types.length; i < len; i++) {
-                let typeOptions = request.options.types[i];
-                await page.type(typeOptions.selector, typeOptions.text, {
-                    'delay': typeOptions.delay,
-                });
-            }
-        }
-
-        if (request.options && request.options.selects) {
-            for (let i = 0, len = request.options.selects.length; i < len; i++) {
-                let selectOptions = request.options.selects[i];
-                await page.select(selectOptions.selector, selectOptions.value);
-            }
-        }
-
-        if (request.options && request.options.clicks) {
-            for (let i = 0, len = request.options.clicks.length; i < len; i++) {
-                let clickOptions = request.options.clicks[i];
-                await page.click(clickOptions.selector, {
-                    'button': clickOptions.button,
-                    'clickCount': clickOptions.clickCount,
-                    'delay': clickOptions.delay,
-                });
-            }
-        }
-
-        if (request.options && request.options.locatorClicks) {
-            for (let i = 0, len = request.options.locatorClicks.length; i < len; i++) {
-                let clickOptions = request.options.locatorClicks[i];
-                try {
-                    await page.locator(clickOptions.selector).click({
-                        'button': clickOptions.button,
-                        'clickCount': clickOptions.clickCount,
-                        'delay': clickOptions.delay,
-                    });
-                } catch (error) {
-                    console.error('Timeout error:', error);
-                }
-            }
-        }
-
-        if (request.options && request.options.addStyleTag) {
-            await page.addStyleTag(JSON.parse(request.options.addStyleTag));
-        }
-
-        if (request.options && request.options.addScriptTag) {
-            await page.addScriptTag(JSON.parse(request.options.addScriptTag));
-        }
-
-        if (request.options.delay) {
-            await new Promise(r => setTimeout(r, request.options.delay));
-        }
-
-        if (request.options.initialPageNumber) {
-            await page.evaluate((initialPageNumber) => {
-                window.pageStart = initialPageNumber;
-
-                const style = document.createElement('style');
-                style.type = 'text/css';
-                style.innerHTML = '.empty-page { page-break-after: always; visibility: hidden; }';
-                document.getElementsByTagName('head')[0].appendChild(style);
-
-                const emptyPages = Array.from({length: window.pageStart}).map(() => {
-                    const emptyPage = document.createElement('div');
-                    emptyPage.className = "empty-page";
-                    emptyPage.textContent = "empty";
-                    return emptyPage;
-                });
-                document.body.prepend(...emptyPages);
-            }, request.options.initialPageNumber);
-        }
+        await page.goto(request.url, requestOptions);
 
         if (request.options.function) {
             let functionOptions = {
@@ -337,44 +150,18 @@ const callChrome = async pup => {
             await page.waitForFunction(request.options.function, functionOptions);
         }
 
-        if (request.options.waitForSelector) {
-            await page.waitForSelector(request.options.waitForSelector, (request.options.waitForSelectorOptions ? request.options.waitForSelectorOptions :  undefined));
-        }
-
-        if (request.options.selector) {
-            var element;
-            const index = request.options.selectorIndex || 0;
-            if(index){
-                element = await page.$$(request.options.selector);
-                if(!element.length || typeof element[index] === 'undefined'){
-                    element = null;
-                }else{
-                    element = element[index];
-                }
-            }else{
-                element = await page.$(request.options.selector);
-            }
-            if (element === null) {
-                throw {type: 'ElementNotFound'};
-            }
-
-            request.options.clip = await element.boundingBox();
-        }
-
-        console.log(await getOutput(request, page));
-
         if (remoteInstance && page) {
             await page.close();
         }
 
-        await ((remoteInstance || request.options.debuggingPort) ? browser.disconnect() : browser.close());
+        await (remoteInstance ? browser.disconnect() : browser.close());
     } catch (exception) {
         if (browser) {
             if (remoteInstance && page) {
                 await page.close();
             }
 
-            await ((remoteInstance || request.options.debuggingPort) ? browser.disconnect() : browser.close());
+            await (remoteInstance ? browser.disconnect() : browser.close());
         }
 
         const output = await getOutput(request);
